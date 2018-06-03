@@ -2,7 +2,7 @@ import warnings
 from collections import Iterable
 
 from werkzeug.datastructures import FileStorage
-from wtforms import FileField as _FileField
+from wtforms import FileField as _FileField, MultipleFileField as _MultipleFileField
 from wtforms.validators import DataRequired, StopValidation
 
 from ._compat import FlaskWTFDeprecationWarning
@@ -34,6 +34,18 @@ class FileField(_FileField):
             'checked during processing instead.'
         ))
         return bool(self.data)
+
+
+class MultipleFileField(_MultipleFileField):
+    """Werkzeug-aware subclass of :class:`wtforms.fields.MultipleFileField`."""
+
+    def process_formdata(self, valuelist):
+        data = list(x for x in valuelist if isinstance(x, FileStorage) and x)
+
+        if data is not None:
+            self.data = data
+        else:
+            self.raw_data = ()
 
 
 class FileRequired(DataRequired):
@@ -91,3 +103,61 @@ class FileAllowed(object):
 
 
 file_allowed = FileAllowed
+
+
+class FilesRequired(DataRequired):
+    """Validates that all entries are Werkzeug
+    :class:`~werkzeug.datastructures.FileStorage` objects.
+
+    :param message: error message
+
+    You can also use the synonym ``files_required``.
+    """
+
+    def __call__(self, form, field):
+        if not (field.data and all(isinstance(x, FileStorage) for x in field.data)):
+            raise StopValidation(
+                self.message or field.gettext('This field is required.'),
+            )
+
+
+files_required = FilesRequired
+
+
+class FilesAllowed(object):
+    """Validates that all the uploaded files are allowed by a given list of
+    extensions or a Flask-Uploads :class:`~flaskext.uploads.UploadSet`.
+
+    :param upload_set: A list of extensions or an
+        :class:`~flaskext.uploads.UploadSet`
+    :param message: error message
+
+    You can also use the synonym ``files_allowed``.
+    """
+
+    def __init__(self, upload_set, message=None):
+        self.upload_set = upload_set
+        self.message = message
+
+    def __call__(self, form, field):
+        if not (field.data and all(isinstance(x, FileStorage) for x in field.data)):
+            return
+
+        for data in field.data:
+            filename = data.filename.lower()
+
+            if isinstance(self.upload_set, Iterable):
+                if any(filename.endswith('.' + x) for x in self.upload_set):
+                    return
+
+                raise StopValidation(self.message or field.gettext(
+                    'File does not have an approved extension: {extensions}'
+                ).format(extensions=', '.join(self.upload_set)))
+
+            if not self.upload_set.file_allowed(data, filename):
+                raise StopValidation(self.message or field.gettext(
+                    'File does not have an approved extension.'
+                ))
+
+
+files_allowed = FilesAllowed
