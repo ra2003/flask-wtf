@@ -1,10 +1,10 @@
 import pytest
-from werkzeug.datastructures import FileStorage, MultiDict
-from wtforms import FileField as BaseFileField
+from werkzeug.datastructures import FileStorage, MultiDict, ImmutableMultiDict
+from wtforms import FileField as BaseFileField, MultipleFileField as BaseMultipleFileField
 
 from flask_wtf import FlaskForm
 from flask_wtf._compat import FlaskWTFDeprecationWarning
-from flask_wtf.file import FileAllowed, FileField, FileRequired
+from flask_wtf.file import FileAllowed, FileField, FileRequired, MultipleFileField, FilesRequired, FilesAllowed
 
 
 @pytest.fixture
@@ -14,6 +14,7 @@ def form(req_ctx):
             csrf = False
 
         file = FileField()
+        files = MultipleFileField()
 
     return UploadForm
 
@@ -93,3 +94,74 @@ def test_deprecated_filefield(recwarn, form):
     assert not form().file.has_file()
     w = recwarn.pop(FlaskWTFDeprecationWarning)
     assert 'has_file' in str(w.message)
+
+
+def test_process_formdata_for_files(form):
+
+    assert form(ImmutableMultiDict([('files', FileStorage()), ('files', FileStorage())])).files.data is None
+    assert form(ImmutableMultiDict([('files', FileStorage(filename='a.jpg')), ('files', FileStorage(filename='b.jpg'))])
+                ).files.data is not None
+
+
+def test_files_required(form):
+    form.files.kwargs['validators'] = [FilesRequired()]
+
+    f = form()
+    assert not f.validate()
+    assert f.files.errors[0] == 'This field is required.'
+
+    f = form(files='not a file')
+    assert not f.validate()
+    assert f.files.errors[0] == 'This field is required.'
+
+    f = form(files=[FileStorage()])
+    assert not f.validate()
+
+    f = form(files=[FileStorage(filename='real')])
+    assert f.validate()
+
+
+def test_files_allowed(form):
+    form.files.kwargs['validators'] = [FilesAllowed(('txt',))]
+
+    f = form()
+    assert f.validate()
+
+    f = form(files=[FileStorage(filename='test.txt'), FileStorage(filename='test2.txt')])
+    assert f.validate()
+
+    f = form(files=[FileStorage(filename='test.txt'), FileStorage(filename='test.png')])
+    assert not f.validate()
+    assert f.files.errors[0] == 'File does not have an approved extension: txt'
+
+
+def test_files_allowed_uploadset(app, form):
+    pytest.importorskip('flask_uploads')
+    from flask_uploads import UploadSet, configure_uploads
+
+    app.config['UPLOADS_DEFAULT_DEST'] = 'uploads'
+    txt = UploadSet('txt', extensions=('txt',))
+    configure_uploads(app, (txt,))
+    form.files.kwargs['validators'] = [FilesAllowed(txt)]
+
+    f = form()
+    assert f.validate()
+
+    f = form(files=[FileStorage(filename='test.txt'), FileStorage(filename='test2.txt')])
+    assert f.validate()
+
+    f = form(files=[FileStorage(filename='test.txt'), FileStorage(filename='test.png')])
+    assert not f.validate()
+    assert f.files.errors[0] == 'File does not have an approved extension.'
+
+
+def test_validate_base_multiple_field(req_ctx):
+    class F(FlaskForm):
+        class Meta:
+            csrf = False
+
+        f = BaseMultipleFileField(validators=[FilesRequired()])
+
+    assert not F().validate()
+    assert not F(f=[FileStorage()]).validate()
+    assert F(f=[FileStorage(filename='real')]).validate()
