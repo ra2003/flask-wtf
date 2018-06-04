@@ -7,7 +7,7 @@ Version 0.15
 Released --
 
 - Add ``MultipleFileField``, ``FilesRequired``, ``FilesAllowed`` to support
-multiple files validation. (`#338`_)
+  multiple files validation. (`#338`_)
 
 .. _#338: https://github.com/lepture/flask-wtf/pull/338
 
