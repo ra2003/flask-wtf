@@ -1,6 +1,16 @@
 Flask-WTF Changelog
 ===================
 
+Version 0.15
+--------------
+
+Released --
+
+- Add ``MultipleFileField``, ``FilesRequired``, ``FilesAllowed`` to support
+multiple files validation. (`#foo`_)
+
+.. _#foo: https://github.com/lepture/flask-wtf/pull/foo
+
 Version 0.14.2
 --------------
 
