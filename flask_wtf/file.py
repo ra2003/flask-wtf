@@ -40,7 +40,8 @@ class MultipleFileField(_MultipleFileField):
     """Werkzeug-aware subclass of :class:`wtforms.fields.MultipleFileField`."""
 
     def process_formdata(self, valuelist):
-        data = list(x for x in valuelist if isinstance(x, FileStorage) and x)
+        valuelist = (x for x in valuelist if isinstance(x, FileStorage) and x)
+        data = list(valuelist) or None
 
         if data is not None:
             self.data = data
@@ -115,7 +116,7 @@ class FilesRequired(DataRequired):
     """
 
     def __call__(self, form, field):
-        if not (field.data and all(isinstance(x, FileStorage) for x in field.data)):
+        if not (field.data and all(isinstance(x, FileStorage) and x for x in field.data)):
             raise StopValidation(
                 self.message or field.gettext('This field is required.'),
             )
@@ -140,7 +141,7 @@ class FilesAllowed(object):
         self.message = message
 
     def __call__(self, form, field):
-        if not (field.data and all(isinstance(x, FileStorage) for x in field.data)):
+        if not (field.data and all(isinstance(x, FileStorage) and x for x in field.data)):
             return
 
         for data in field.data:
@@ -148,7 +149,7 @@ class FilesAllowed(object):
 
             if isinstance(self.upload_set, Iterable):
                 if any(filename.endswith('.' + x) for x in self.upload_set):
-                    return
+                    continue
 
                 raise StopValidation(self.message or field.gettext(
                     'File does not have an approved extension: {extensions}'
