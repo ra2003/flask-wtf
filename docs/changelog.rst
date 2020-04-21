@@ -2,7 +2,7 @@ Flask-WTF Changelog
 ===================
 
 Version 0.15
---------------
+-------------
 
 Released --
 
@@ -10,6 +10,13 @@ Released --
   multiple files validation. (`#338`_)
 
 .. _#338: https://github.com/lepture/flask-wtf/pull/338
+
+Version 0.14.3
+--------------
+
+Released 2020-02-06
+
+-   Fix deprecated imports from ``werkzeug`` and ``collections``.
 
 Version 0.14.2
 --------------
