@@ -147,7 +147,7 @@ class FilesAllowed(object):
         for data in field.data:
             filename = data.filename.lower()
 
-            if isinstance(self.upload_set, Iterable):
+            if isinstance(self.upload_set, abc.Iterable):
                 if any(filename.endswith('.' + x) for x in self.upload_set):
                     continue
 
